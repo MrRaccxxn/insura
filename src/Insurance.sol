@@ -139,7 +139,7 @@ contract Insurance is ReentrancyGuard {
         uint256 _duration,
         uint8 _riskLevel,
         string memory _data
-    ) external payable {
+    ) external payable nonReentrant {
         require(_insuredAmount > 0, "Insured amount must be greater than 0");
         require(_duration > 0, "Duration must be greater than 0");
         require(
@@ -157,7 +157,8 @@ contract Insurance is ReentrancyGuard {
 
         // Refund excess payment if any
         if (msg.value > premium) {
-            payable(msg.sender).transfer(msg.value - premium);
+            (bool success, ) = payable(msg.sender).call{value: msg.value - premium}("");
+            require(success, "Refund transfer failed");
         }
 
         // Update policy counter
@@ -413,7 +414,8 @@ contract Insurance is ReentrancyGuard {
 
             // Process refund based on asset type
             if (policy.assetType == AssetType.ETH) {
-                payable(msg.sender).transfer(refundAmount);
+                (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
+                require(success, "ETH refund failed");
             } else {
                 IERC20 token = IERC20(policy.tokenAddress);
                 bool success = token.transfer(msg.sender, refundAmount);
@@ -464,7 +466,8 @@ contract Insurance is ReentrancyGuard {
             "Insufficient contract balance"
         );
 
-        payable(_to).transfer(_amount);
+        (bool success, ) = payable(_to).call{value: _amount}("");
+        require(success, "ETH withdrawal failed");
         emit FundsWithdrawn(_to, _amount);
     }
 
@@ -650,9 +653,8 @@ contract Insurance is ReentrancyGuard {
             );
 
             // Refund excess payment if any
-            if (msg.value > additionalPremium) {
-                payable(msg.sender).transfer(msg.value - additionalPremium);
-            }
+            (bool success, ) = payable(msg.sender).call{value: msg.value - additionalPremium}("");
+            require(success, "Refund transfer failed");
 
             // Update total premium collected for ETH
             totalPremiumCollected += additionalPremium;
